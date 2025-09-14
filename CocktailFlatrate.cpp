@@ -1,12 +1,10 @@
 #include "CocktailFlatrate.h"
 #include "Cocktail.h"
 #include <iostream>
-#include <cstdlib>
-#include <ctime>
+#include <random>
 
 // Konstruktor: Initialisiert Zufallszahlengenerator und Zutatenliste
-CocktailFlatrate::CocktailFlatrate() {
-    srand(time(0));              // Zufallszahlen initialisieren
+CocktailFlatrate::CocktailFlatrate() : rd_(), gen_(rd_()) {
     initalisiereZutaten();       // Liste mit verfügbaren Zutaten vorbereiten
 }
 
@@ -27,14 +25,19 @@ void CocktailFlatrate::starteFlatrate(Kunde& kunde) {
     double grenze = 30.0;   // Zielpreis für die Flatrate
     double gesamt = 0.0;    // bisheriger Gesamtwert
 
+    // Zufallsverteilungen für moderne C++ random generation
+    std::uniform_int_distribution<int> zutaten_dist(0, static_cast<int>(zutaten_.size()) - 1);
+    std::uniform_int_distribution<int> anzahl_dist(1, 3);
+
     // Schleife: solange Gesamtwert unter Zielgrenze bleibt
     while (gesamt < grenze) {
         Cocktail* zufallscocktail = new Cocktail();
+        int zielAnzahl = anzahl_dist(gen_);  // Zufällige Anzahl zwischen 1 und 3
         int hinzugefuegt = 0;
 
-        // Füge 3 zufällige Zutaten hinzu (nur alkoholfrei bei U18)
-        while (hinzugefuegt < 3) {
-            int i = rand() % zutaten_.size();
+        // Füge zufällige Anzahl (1-3) von Zutaten hinzu (nur alkoholfrei bei U18)
+        while (hinzugefuegt < zielAnzahl) {
+            int i = zutaten_dist(gen_);
             Zutat z = zutaten_[i];
 
             if (kunde.getAlter() < 18 && !z.getAlkoholfrei()) {
