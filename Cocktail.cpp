@@ -9,8 +9,8 @@ void Cocktail::addZutat(const Zutat& zutat) {
 
 // Prüft, ob alle Zutaten alkoholfrei sind
 bool Cocktail::istAlkoholfrei() const {
-    for (int i = 0; i < zutaten_.size(); ++i) {
-        if (!zutaten_[i].getAlkoholfrei()) {
+    for (const auto& zutat : zutaten_) {
+        if (!zutat.getAlkoholfrei()) {
             return false;
         }
     }
@@ -20,8 +20,8 @@ bool Cocktail::istAlkoholfrei() const {
 // Berechnet die Gesamtkosten aller enthaltenen Zutaten
 double Cocktail::berechneKosten() const {
     double summe = 0;
-    for (int i = 0; i < zutaten_.size(); ++i) {
-        summe += zutaten_[i].getPreis();
+    for (const auto& zutat : zutaten_) {
+        summe += zutat.getPreis();
     }
     return summe;
 }
@@ -29,9 +29,9 @@ double Cocktail::berechneKosten() const {
 // Gibt alle Zutaten und Infos zum Cocktail aus
 void Cocktail::display() const {
     std::cout << "Deine Zutaten: " << std::endl;
-    for (int i = 0; i < zutaten_.size(); ++i) {
-        std::cout << "Name: " << zutaten_[i].getName()
-        << ", (Preis: " << zutaten_[i].getPreis() << ") " << std::endl;
+    for (const auto& zutat : zutaten_) {
+        std::cout << "Name: " << zutat.getName()
+        << ", (Preis: " << zutat.getPreis() << ") " << std::endl;
     }
     std::cout << "Gesamtpreis: " << berechneKosten() << " Euro" << std::endl;
     std::cout << "Alkoholfrei: " << (istAlkoholfrei() ? "Ja" : "Nein") << std::endl;

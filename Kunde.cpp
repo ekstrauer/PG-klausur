@@ -39,18 +39,20 @@ void Kunde::printHistory() const {
               << " (Alter: " << alter_ << ")" << std::endl;
     std::cout << "Gekaufte Cocktails:" << std::endl;
 
-    for (int i = 0; i < gekaufteCocktails_.size(); ++i) {
-        std::cout << "- Cocktail " << (i + 1) << ":" << std::endl;
-        gekaufteCocktails_[i]->display(); // zeigt Inhalt und Preis an
+    int cocktailNummer = 1;
+    for (const auto* cocktail : gekaufteCocktails_) {
+        std::cout << "- Cocktail " << cocktailNummer << ":" << std::endl;
+        cocktail->display(); // zeigt Inhalt und Preis an
         std::cout << std::endl;
+        ++cocktailNummer;
     }
 }
 
 // Berechnet die Gesamtsumme aller bisher gekauften Cocktails
 double Kunde::berechneRechnung() const {
     double summe = 0.0;
-    for (int i = 0; i < gekaufteCocktails_.size(); ++i) {
-        summe += gekaufteCocktails_[i]->berechneKosten();
+    for (const auto* cocktail : gekaufteCocktails_) {
+        summe += cocktail->berechneKosten();
     }
     return summe;
 }

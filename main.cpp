@@ -1,11 +1,15 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
+#include <optional>
 
 #include "Zutat.h"
 #include "Cocktail.h"
 #include "Kunde.h"
 #include "CocktailFlatrate.h"
+#include "ZutatenManager.h"
+#include "InputValidation.h"
 
 using std::cin;
 using std::cout;
@@ -13,148 +17,112 @@ using std::endl;
 
 int main()
 {
-    // Liste aller Kunden (für spätere Speicherfreigabe / Verwaltung)
-    std::vector<Kunde*> kundenListe;
-    Kunde* aktiverKunde = nullptr; // Der aktuell ausgewählte Kunde
+    // Liste aller Kunden (mit smart pointers für automatische Speicherverwaltung)
+    std::vector<std::unique_ptr<Kunde>> kundenListe;
+    std::optional<std::reference_wrapper<Kunde>> aktiverKunde = std::nullopt; // Der aktuell ausgewählte Kunde
 
-    // Kundenanmeldung
-    std::string vorname;
-    std::string nachname;
-    int alter;
-    cout << "Geben Sie ihren Vornamen ein:" << endl;
-    cin >> vorname;
-    cout << "Geben Sie ihren Nachnamen ein:" << endl;
-    cin >> nachname;
-    cout << "Geben Sie Ihr Alter ein:" << endl;
-    cin >> alter;
+    // Kundenanmeldung mit robuster Eingabevalidierung
+    std::string vorname = InputValidation::readString("Geben Sie ihren Vornamen ein: ");
+    std::string nachname = InputValidation::readString("Geben Sie ihren Nachnamen ein: ");
+    int alter = InputValidation::readInt("Geben Sie Ihr Alter ein: ", 0, 150);
 
-    // Erstelle neuen Kunden dynamisch und setze ihn als aktiv
-    Kunde* kunde = new Kunde(vorname, nachname, alter);
-    kundenListe.push_back(kunde);
-    aktiverKunde = kunde;
+    // Erstelle neuen Kunden mit smart pointer und setze ihn als aktiv
+    auto kunde = std::make_unique<Kunde>(vorname, nachname, alter);
+    aktiverKunde = std::ref(*kunde);
+    kundenListe.push_back(std::move(kunde));
 
-    cout << "Hallo " << aktiverKunde->getVorname() << " " << aktiverKunde->getNachname()
+    cout << "Hallo " << aktiverKunde->get().getVorname() << " " << aktiverKunde->get().getNachname()
          << ", willkommen im Studierendencafé der hda." << endl;
 
     bool running = true;
     while (running) {
         // Menüanzeige
-        char eingabe;
         cout << "\nBitte treffen Sie Ihre Wahl:" << endl;
         cout << "c/C: Cocktail kaufen" << endl;
         cout << "r/R: Rechnung anschauen" << endl;
         cout << "a/A: Auf gut Glück (CocktailFlatrate)" << endl;
         cout << "n/N: Neuen Kunden anlegen" << endl;
         cout << "x/X: Café verlassen" << endl;
-        cin >> eingabe;
+        
+        char eingabe = InputValidation::readChar("Ihre Wahl: ", "crancranxCRANCRANX");
 
         switch (eingabe) {
-        case 'c':
-        case 'C': {
-            // Neuer Cocktail (dynamisch)
-            Cocktail* cocktail = new Cocktail();
+        case 'c': {
+            // Neuer Cocktail mit smart pointer
+            auto cocktail = std::make_unique<Cocktail>();
             bool cocktailFertig = false;
             bool mindestensEineZutat = false;
+            
+            // Zugriff auf ZutatenManager für dynamische Zutatenanzeige
+            ZutatenManager& zutatenManager = ZutatenManager::getInstance();
 
             while (!cocktailFertig) {
-                // Zutatenauswahl anzeigen
-                cout << "Zutat hinzufügen (0 = fertig):" << endl;
-                cout << "1 - Sahne (0.99 Euro)" << endl;
-                cout << "2 - Ananassaft (0.59 Euro)" << endl;
-                cout << "3 - Wodka (2.99 Euro)" << endl;
-                cout << "4 - Rum (3.99 Euro)" << endl;
-                cout << "5 - Cola (1.49 Euro)" << endl;
+                // Dynamische Zutatenauswahl basierend auf Kundenalter
+                zutatenManager.zeigeZutatenMenu(aktiverKunde->get().getAlter());
 
-                int auswahl;
-                cin >> auswahl;
+                int auswahl = InputValidation::readInt("Ihre Auswahl: ", 0, 
+                    static_cast<int>(zutatenManager.getVerfuegbareZutaten().size()));
 
-                switch (auswahl) {
-                case 1:
-                    cocktail->addZutat(Zutat("Sahne", 0.99, true));
-                    mindestensEineZutat = true;
-                    break;
-                case 2:
-                    cocktail->addZutat(Zutat("Ananassaft", 0.59, true));
-                    mindestensEineZutat = true;
-                    break;
-                case 3:
-                    if (aktiverKunde->getAlter() >= 18) {
-                        cocktail->addZutat(Zutat("Wodka", 2.99, false));
-                        mindestensEineZutat = true;
-                    } else {
-                        cout << "Sie sind leider zu jung!" << endl;
-                    }
-                    break;
-                case 4:
-                    if (aktiverKunde->getAlter() >= 18) {
-                        cocktail->addZutat(Zutat("Rum", 3.99, false));
-                        mindestensEineZutat = true;
-                    } else {
-                        cout << "Kein Alkohol für Minderjährige!" << endl;
-                    }
-                    break;
-                case 5:
-                    cocktail->addZutat(Zutat("Cola", 1.49, true));
-                    mindestensEineZutat = true;
-                    break;
-                case 0:
+                if (auswahl == 0) {
                     if (mindestensEineZutat) {
                         cocktailFertig = true;
                     } else {
                         cout << "Bitte wählen Sie mindestens eine Zutat aus!" << endl;
                     }
-                    break;
-                default:
-                    cout << "Ungültige Eingabe!" << endl;
-                    break;
+                } else {
+                    const Zutat* gewaehlteZutat = zutatenManager.getZutatByIndex(auswahl);
+                    if (gewaehlteZutat != nullptr) {
+                        // Altersprüfung für alkoholische Zutaten
+                        if (!gewaehlteZutat->getAlkoholfrei() && aktiverKunde->get().getAlter() < 18) {
+                            cout << "Sie sind leider zu jung für alkoholische Zutaten!" << endl;
+                        } else {
+                            cocktail->addZutat(*gewaehlteZutat);
+                            mindestensEineZutat = true;
+                        }
+                    } else {
+                        cout << "Ungültige Zutatennummer!" << endl;
+                    }
                 }
             }
 
             cocktail->display(); // Zeigt Cocktaildetails
-            aktiverKunde->addCocktail(cocktail);
             Cocktail::addToUmsatz(cocktail->berechneKosten());
+            aktiverKunde->get().addCocktail(cocktail.release()); // Transfer ownership to Kunde
 
             break;
         }
 
-        case 'a':
-        case 'A': {
+        case 'a': {
             // Starte automatische Cocktail-Flatrate
             CocktailFlatrate flatrate;
-            flatrate.starteFlatrate(*aktiverKunde);
+            flatrate.starteFlatrate(aktiverKunde->get());
             break;
         }
 
-        case 'n':
-        case 'N': {
+        case 'n': {
             // Neuen Kunden anlegen und aktivieren
             cout << "Neuen Kunden anlegen:" << endl;
-            cout << "Vorname: ";
-            cin >> vorname;
-            cout << "Nachname: ";
-            cin >> nachname;
-            cout << "Alter: ";
-            cin >> alter;
+            std::string neuerVorname = InputValidation::readString("Vorname: ");
+            std::string neuerNachname = InputValidation::readString("Nachname: ");
+            int neuesAlter = InputValidation::readInt("Alter: ", 0, 150);
 
-            Kunde* neuerKunde = new Kunde(vorname, nachname, alter);
-            kundenListe.push_back(neuerKunde);
-            aktiverKunde = neuerKunde;
+            auto neuerKunde = std::make_unique<Kunde>(neuerVorname, neuerNachname, neuesAlter);
+            aktiverKunde = std::ref(*neuerKunde);
+            kundenListe.push_back(std::move(neuerKunde));
 
-            cout << "Hallo " << aktiverKunde->getVorname() << " " << aktiverKunde->getNachname()
+            cout << "Hallo " << aktiverKunde->get().getVorname() << " " << aktiverKunde->get().getNachname()
                  << ", willkommen zurück im Studierendencafé!" << endl;
             break;
         }
 
-        case 'r':
-        case 'R': {
+        case 'r': {
             // Zeige Cocktails und Rechnung für aktiven Kunden
-            aktiverKunde->printHistory();
-            cout << "Gesamtkosten: " << aktiverKunde->berechneRechnung() << " Euro" << endl;
+            aktiverKunde->get().printHistory();
+            cout << "Gesamtkosten: " << aktiverKunde->get().berechneRechnung() << " Euro" << endl;
             break;
         }
 
-        case 'x':
-        case 'X': {
+        case 'x': {
             // Beenden
             cout << "Sie haben das Café verlassen." << endl;
             running = false;
@@ -167,10 +135,8 @@ int main()
         }
     }
 
-    // Speicherbereinigung: Alle Kunden löschen
-    for (Kunde* k : kundenListe) {
-        delete k;
-    }
+    // Mit smart pointers ist keine manuelle Speicherbereinigung nötig
+    // Die unique_ptr-Objekte werden automatisch aufgeräumt
 
     return 0;
 }

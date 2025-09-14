@@ -1,0 +1,16 @@
+# Compiled binaries
+main
+*.exe
+*.out
+
+# Build artifacts
+*.o
+*.obj
+
+# IDE files
+.vscode/
+*.swp
+*.tmp
+
+# Temporary files
+/tmp/

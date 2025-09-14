@@ -1,24 +1,14 @@
 #include "CocktailFlatrate.h"
 #include "Cocktail.h"
+#include "ZutatenManager.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
 
-// Konstruktor: Initialisiert Zufallszahlengenerator und Zutatenliste
+// Konstruktor: Initialisiert Zufallszahlengenerator
 CocktailFlatrate::CocktailFlatrate() {
     srand(time(0));              // Zufallszahlen initialisieren
-    initalisiereZutaten();       // Liste mit verfügbaren Zutaten vorbereiten
-}
-
-// Erstellt eine feste Auswahl an Zutaten für die Zufallscocktails
-void CocktailFlatrate::initalisiereZutaten() {
-    zutaten_ =  {
-        Zutat("Sahne", 0.99, true),
-        Zutat("Ananassaft", 0.59, true),
-        Zutat("Wodka", 2.99, false),
-        Zutat("Rum", 3.99, false),
-        Zutat("Cola", 1.49, true)
-    };
+    // Zutaten werden nun vom ZutatenManager bereitgestellt
 }
 
 // Startet die Cocktail-Flatrate für einen Kunden
@@ -26,6 +16,10 @@ void CocktailFlatrate::initalisiereZutaten() {
 void CocktailFlatrate::starteFlatrate(Kunde& kunde) {
     double grenze = 30.0;   // Zielpreis für die Flatrate
     double gesamt = 0.0;    // bisheriger Gesamtwert
+    
+    // Verwende ZutatenManager für konsistente Zutatenauswahl
+    ZutatenManager& zutatenManager = ZutatenManager::getInstance();
+    const std::vector<Zutat>& verfuegbareZutaten = zutatenManager.getVerfuegbareZutaten();
 
     // Schleife: solange Gesamtwert unter Zielgrenze bleibt
     while (gesamt < grenze) {
@@ -34,8 +28,8 @@ void CocktailFlatrate::starteFlatrate(Kunde& kunde) {
 
         // Füge 3 zufällige Zutaten hinzu (nur alkoholfrei bei U18)
         while (hinzugefuegt < 3) {
-            int i = rand() % zutaten_.size();
-            Zutat z = zutaten_[i];
+            int i = rand() % verfuegbareZutaten.size();
+            const Zutat& z = verfuegbareZutaten[i];
 
             if (kunde.getAlter() < 18 && !z.getAlkoholfrei()) {
                 continue; // Alkohol bei Minderjährigen vermeiden
